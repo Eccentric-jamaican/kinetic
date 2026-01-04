@@ -9,19 +9,31 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@use-gesture/react": "^10.3.1",
+    "canvas-confetti": "^1.9.4",
+    "flubber": "^0.4.2",
+    "framer-motion": "^12.23.26",
     "next": "16.1.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-resizable-panels": "^4.2.0",
+    "zod": "^4.3.4",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/flubber": "^0.4.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.16"
   },
   "ignoreScripts": [
     "sharp",
