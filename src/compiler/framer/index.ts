@@ -352,20 +352,22 @@ export class FramerMotionCompiler {
       lines.push('');
     }
 
-    // Generate event handlers for hover/tap sequences
-    const hoverSequences = this.dsl.timeline.sequences.filter(
-      (seq) => seq.trigger.type === 'hover'
-    );
-    const tapSequences = this.dsl.timeline.sequences.filter(
-      (seq) => seq.trigger.type === 'tap'
-    );
-
     // JSX
+    // Identify root elements (those not children of any other element)
+    const childIds = new Set<string>();
+    for (const el of Object.values(this.dsl.elements)) {
+      if ('children' in el && el.children) {
+        el.children.forEach(id => childIds.add(id));
+      }
+    }
+
     lines.push('return (');
-    lines.push('  <div className="relative">');
+    lines.push('  <div className="relative w-full h-full">');
 
     for (const [elementId, element] of Object.entries(this.dsl.elements)) {
-      lines.push(this.generateElementJSX(elementId, element, '    '));
+      if (!childIds.has(elementId)) {
+        lines.push(this.generateElementJSX(elementId, element, '    '));
+      }
     }
 
     lines.push('  </div>');
@@ -459,27 +461,41 @@ export class FramerMotionCompiler {
     // Add hover variant if exists
     if (hoverSeq && hoverSeq.animations.length > 0) {
       const firstAnim = hoverSeq.animations[0];
-      if ('to' in firstAnim) {
-        props.push(`whileHover={${stateToObject(firstAnim.to)}}`);
+      if ('to' in firstAnim && typeof firstAnim.to === 'object') {
+        props.push(`whileHover={${stateToObject(firstAnim.to as Partial<ElementState>)}}`);
       }
     }
 
     // Add tap variant if exists
     if (tapSeq && tapSeq.animations.length > 0) {
       const firstAnim = tapSeq.animations[0];
-      if ('to' in firstAnim) {
-        props.push(`whileTap={${stateToObject(firstAnim.to)}}`);
+      if ('to' in firstAnim && typeof firstAnim.to === 'object') {
+        props.push(`whileTap={${stateToObject(firstAnim.to as Partial<ElementState>)}}`);
       }
     }
 
     // Add element-specific props
     if (element.type === 'text' && 'content' in element) {
       const content = (element as { content: string }).content;
-      return `${ind}<${tag}\n${ind}  ${props.join(`\n${ind}  `)}\n${ind}  className="absolute"\n${ind}>\n${ind}  ${content}\n${ind}</${tag.split('.')[1] || 'div'}>`;
+      return `${ind}<${tag}\n${ind}  ${props.join(`\n${ind}  `)}\n${ind}  className="absolute"\n${ind}>\n${ind}  ${content}\n${ind}</${tag.split('.')[1] || 'span'}>`;
     }
 
     if (element.type === 'path' && 'd' in element) {
       props.push(`d="${(element as { d: string }).d}"`);
+    }
+
+    // Handle children for group or svg
+    const childrenIds = (element as any).children || [];
+    if (childrenIds.length > 0) {
+      const childJSX = childrenIds.map((childId: string) => {
+        const child = this.dsl.elements[childId];
+        if (child) {
+          return this.generateElementJSX(childId, child, ind + '  ');
+        }
+        return '';
+      }).join('\n');
+
+      return `${ind}<${tag}\n${ind}  ${props.join(`\n${ind}  `)}\n${ind}  className="absolute"\n${ind}>\n${childJSX}\n${ind}</${tag.split('.')[1] || (element.type === 'svg' ? 'svg' : 'div')}>`;
     }
 
     return `${ind}<${tag}\n${ind}  ${props.join(`\n${ind}  `)}\n${ind}  className="absolute"\n${ind}/>`;
@@ -494,7 +510,7 @@ export class FramerMotionCompiler {
       case 'path':
         return 'motion.path';
       case 'circle':
-        return 'motion.div'; // styled as circle
+        return 'motion.div'; // styled as circle via CSS/initial state
       default:
         return 'motion.div';
     }

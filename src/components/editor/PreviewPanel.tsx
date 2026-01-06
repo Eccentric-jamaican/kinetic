@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { motion, useAnimation, type TargetAndTransition, type Transition } from 'framer-motion';
 import { useEditorStore } from '@/store';
 import { createInterpreter, convertStateToFramerMotion } from '@/runtime';
-import type { ElementDefinition } from '@/dsl/schema';
+import type { ElementDefinition, KineticAnimation, SpringConfig } from '@/dsl/schema';
 
 export function PreviewPanel() {
   const { dsl, previewState, setPreviewState } = useEditorStore();
@@ -47,7 +47,10 @@ export function PreviewPanel() {
     <div className="h-full flex flex-col bg-zinc-900">
       {/* Header */}
       <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
-        <span className="text-sm font-medium text-zinc-300">Preview</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-zinc-300">Preview</span>
+          <span className="text-xs text-zinc-500">Hover/tap work automatically</span>
+        </div>
 
         <div className="flex items-center gap-2">
           <button
@@ -68,11 +71,12 @@ export function PreviewPanel() {
             onClick={handlePlay}
             disabled={previewState === 'playing'}
             className="px-3 py-1.5 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded transition-colors flex items-center gap-1"
+            title="Play mount animations"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
-            Play
+            Mount
           </button>
         </div>
       </div>
@@ -139,13 +143,26 @@ function AnimationPreview({
     );
   }
 
+  // Find root elements (not children of any group)
+  const childIds = new Set<string>();
+  for (const element of Object.values(dsl.elements)) {
+    if (element.type === 'group' && 'children' in element) {
+      for (const childId of (element as { children?: string[] }).children || []) {
+        childIds.add(childId);
+      }
+    }
+  }
+
+  const rootElements = Object.entries(dsl.elements).filter(([id]) => !childIds.has(id));
+
   return (
     <div className="relative" style={{ width: 400, height: 400 }}>
-      {Object.entries(dsl.elements).map(([id, element]) => (
+      {rootElements.map(([id, element]) => (
         <ElementRenderer
           key={id}
           id={id}
           element={element}
+          dsl={dsl}
           controlsRef={controlsRef}
         />
       ))}
@@ -153,14 +170,76 @@ function AnimationPreview({
   );
 }
 
+// Helper to convert spring config to Framer Motion transition
+function springToTransition(spring: SpringConfig): Transition {
+  if (typeof spring === 'string') {
+    const presets: Record<string, Transition> = {
+      gentle: { type: 'spring', stiffness: 120, damping: 14 },
+      wobbly: { type: 'spring', stiffness: 180, damping: 12 },
+      stiff: { type: 'spring', stiffness: 400, damping: 30 },
+      slow: { type: 'spring', stiffness: 80, damping: 20 },
+      molasses: { type: 'spring', stiffness: 50, damping: 25 },
+      bouncy: { type: 'spring', stiffness: 400, damping: 10 },
+    };
+    return presets[spring] || { type: 'spring' };
+  }
+  return {
+    type: 'spring',
+    stiffness: spring.stiffness ?? 100,
+    damping: spring.damping ?? 10,
+    mass: spring.mass ?? 1,
+  };
+}
+
+// Extract animations for a specific element and trigger type
+function getAnimationsForTrigger(
+  dsl: KineticAnimation,
+  elementId: string,
+  triggerType: string
+): { state: TargetAndTransition; transition: Transition } | null {
+  for (const seq of dsl.timeline?.sequences || []) {
+    if (seq.trigger?.type !== triggerType) continue;
+
+    for (const anim of seq.animations || []) {
+      // Check if this animation targets our element
+      if (!('target' in anim)) continue;
+      const targets = Array.isArray(anim.target) ? anim.target : [anim.target];
+      if (!targets.includes(elementId)) continue;
+
+      // Extract the target state
+      const toState = 'to' in anim
+        ? convertStateToFramerMotion(anim.to as Record<string, unknown>) as TargetAndTransition
+        : {} as TargetAndTransition;
+
+      // Extract transition config
+      let transition: Transition = { type: 'spring' };
+      if (anim.type === 'spring' && 'spring' in anim) {
+        transition = springToTransition(anim.spring as SpringConfig);
+      } else if (anim.type === 'transition' && 'transition' in anim) {
+        const t = anim.transition as { duration?: number; easing?: string };
+        transition = {
+          type: 'tween',
+          duration: t.duration ?? 0.3,
+          ease: (t.easing ?? 'easeOut') as 'easeOut' | 'easeIn' | 'easeInOut' | 'linear',
+        };
+      }
+
+      return { state: toState, transition };
+    }
+  }
+  return null;
+}
+
 // Individual element renderer
 function ElementRenderer({
   id,
   element,
+  dsl,
   controlsRef,
 }: {
   id: string;
   element: ElementDefinition;
+  dsl: KineticAnimation;
   controlsRef: React.MutableRefObject<Map<string, ReturnType<typeof useAnimation>>>;
 }) {
   const controls = useAnimation();
@@ -174,6 +253,19 @@ function ElementRenderer({
   }, [id, controls, controlsRef]);
 
   const initialState = convertStateToFramerMotion(element.initial);
+
+  // Extract interactive animations from DSL
+  const { whileHover, whileTap, hoverTransition, tapTransition } = useMemo(() => {
+    const hover = getAnimationsForTrigger(dsl, id, 'hover');
+    const tap = getAnimationsForTrigger(dsl, id, 'tap');
+
+    return {
+      whileHover: hover?.state,
+      whileTap: tap?.state,
+      hoverTransition: hover?.transition,
+      tapTransition: tap?.transition,
+    };
+  }, [dsl, id]);
 
   // Get element-specific styles
   const getElementStyles = () => {
@@ -198,14 +290,38 @@ function ElementRenderer({
     return null;
   };
 
+  // Render children for group elements
+  const renderChildren = () => {
+    if (element.type === 'group' && 'children' in element) {
+      const childIds = (element as { children?: string[] }).children || [];
+      return childIds.map((childId) => {
+        const childElement = dsl.elements[childId];
+        if (!childElement) return null;
+        return (
+          <ElementRenderer
+            key={childId}
+            id={childId}
+            element={childElement}
+            dsl={dsl}
+            controlsRef={controlsRef}
+          />
+        );
+      });
+    }
+    return getContent();
+  };
+
   return (
     <motion.div
       initial={initialState}
       animate={controls}
+      whileHover={whileHover}
+      whileTap={whileTap}
+      transition={hoverTransition || tapTransition || { type: 'spring' }}
       style={getElementStyles()}
       className="cursor-pointer"
     >
-      {getContent()}
+      {renderChildren()}
     </motion.div>
   );
 }

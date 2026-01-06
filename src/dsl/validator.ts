@@ -210,6 +210,7 @@ const ElementStateSchema = z.object({
       autoRotate: z.boolean().optional(),
       offset: NumberOrExpressionSchema.optional(),
     })
+    .passthrough()
     .optional(),
 
   // Clip
@@ -220,7 +221,7 @@ const ElementStateSchema = z.object({
   perspectiveOrigin: z.string().optional(),
   backfaceVisibility: z.enum(['visible', 'hidden']).optional(),
   transformStyle: z.enum(['flat', 'preserve-3d']).optional(),
-});
+}).passthrough();
 
 // ============================================================
 // TRIGGER SCHEMAS
@@ -252,30 +253,30 @@ const AudioTriggerConfigSchema = z.object({
 });
 
 const TriggerDefinitionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('mount'), delay: z.number().optional() }),
-  z.object({ type: z.literal('unmount') }),
-  z.object({ type: z.literal('hover'), element: z.string().optional() }),
-  z.object({ type: z.literal('hoverEnd'), element: z.string().optional() }),
-  z.object({ type: z.literal('tap'), element: z.string().optional() }),
-  z.object({ type: z.literal('focus'), element: z.string().optional() }),
-  z.object({ type: z.literal('blur'), element: z.string().optional() }),
-  z.object({ type: z.literal('scroll'), config: ScrollTriggerConfigSchema }),
-  z.object({ type: z.literal('inView'), config: InViewConfigSchema.optional() }),
+  z.object({ type: z.literal('mount'), delay: z.number().optional() }).passthrough(),
+  z.object({ type: z.literal('unmount') }).passthrough(),
+  z.object({ type: z.literal('hover'), element: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal('hoverEnd'), element: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal('tap'), element: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal('focus'), element: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal('blur'), element: z.string().optional() }).passthrough(),
+  z.object({ type: z.literal('scroll'), config: ScrollTriggerConfigSchema }).passthrough(),
+  z.object({ type: z.literal('inView'), config: InViewConfigSchema.optional() }).passthrough(),
   z.object({
     type: z.literal('swipe'),
     direction: z.enum(['left', 'right', 'up', 'down', 'any']),
     element: z.string().optional(),
     threshold: z.number().optional(),
     velocity: z.number().optional(),
-  }),
+  }).passthrough(),
   z.object({
     type: z.literal('drag'),
     element: z.string().optional(),
     axis: z.enum(['x', 'y', 'both']).optional(),
-  }),
-  z.object({ type: z.literal('custom'), event: z.string() }),
-  z.object({ type: z.literal('state'), condition: z.string() }),
-  z.object({ type: z.literal('audio'), config: AudioTriggerConfigSchema }),
+  }).passthrough(),
+  z.object({ type: z.literal('custom'), event: z.string() }).passthrough(),
+  z.object({ type: z.literal('state'), condition: z.string() }).passthrough(),
+  z.object({ type: z.literal('audio'), config: AudioTriggerConfigSchema }).passthrough(),
 ]);
 
 // ============================================================
@@ -407,9 +408,9 @@ const TextAnimationSchema = z.object({
 // Using z.lazy for the recursive reference
 const AnimationBlockSchema: z.ZodType<unknown> = z.lazy(() =>
   z.discriminatedUnion('type', [
-    KeyframeAnimationSchema,
-    SpringAnimationSchema,
-    TransitionAnimationSchema,
+    KeyframeAnimationSchema.passthrough(),
+    SpringAnimationSchema.passthrough(),
+    TransitionAnimationSchema.passthrough(),
     z.object({
       type: z.literal('group'),
       mode: z.enum(['parallel', 'sequence']),
@@ -417,9 +418,9 @@ const AnimationBlockSchema: z.ZodType<unknown> = z.lazy(() =>
       delay: z.number().optional(),
       stagger: StaggerDefinitionSchema.optional(),
       offset: z.number().optional(),
-    }),
-    MorphAnimationSchema,
-    MatchCutAnimationSchema,
+    }).passthrough(),
+    MorphAnimationSchema.passthrough(),
+    MatchCutAnimationSchema.passthrough(),
     z.object({
       type: z.literal('drag'),
       target: z.string(),
@@ -436,9 +437,9 @@ const AnimationBlockSchema: z.ZodType<unknown> = z.lazy(() =>
       dragElastic: z.number().optional(),
       dragMomentum: z.boolean().optional(),
       onRelease: AnimationBlockSchema.optional(),
-    }),
-    ParticleAnimationSchema,
-    TextAnimationSchema,
+    }).passthrough(),
+    ParticleAnimationSchema.passthrough(),
+    TextAnimationSchema.passthrough(),
   ])
 );
 
@@ -504,11 +505,11 @@ const EffectDefinitionSchema = z.discriminatedUnion('type', [
 ]);
 
 const BaseElementSchema = z.object({
-  initial: ElementStateSchema,
+  initial: ElementStateSchema.optional().default({}),
   blendMode: BlendModeSchema.optional(),
   mask: MaskDefinitionSchema.optional(),
   effects: z.array(EffectDefinitionSchema).optional(),
-});
+}).passthrough();
 
 const LayoutDefinitionSchema = z.object({
   type: z.enum(['row', 'column', 'stack', 'wrap', 'grid']),
@@ -534,11 +535,11 @@ const LayoutDefinitionSchema = z.object({
 });
 
 const ElementDefinitionSchema = z.discriminatedUnion('type', [
-  BaseElementSchema.extend({ type: z.literal('box') }),
+  BaseElementSchema.extend({ type: z.literal('box') }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('circle'),
     radius: NumberOrExpressionSchema.optional(),
-  }),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('text'),
     content: z.string(),
@@ -548,16 +549,16 @@ const ElementDefinitionSchema = z.discriminatedUnion('type', [
     lineHeight: NumberOrExpressionSchema.optional(),
     letterSpacing: NumberOrExpressionSchema.optional(),
     textAlign: z.enum(['left', 'center', 'right']).optional(),
-  }),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('svg'),
     viewBox: z.string().optional(),
-    children: z.array(z.string()),
-  }),
+    children: z.array(z.string()).optional().default([]),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('path'),
     d: z.string(),
-  }),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('mesh'),
     image: z.string(),
@@ -579,17 +580,17 @@ const ElementDefinitionSchema = z.discriminatedUnion('type', [
         })
       )
       .optional(),
-  }),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('group'),
-    children: z.array(z.string()),
+    children: z.array(z.string()).optional().default([]),
     layout: LayoutDefinitionSchema.optional(),
-  }),
+  }).passthrough(),
   BaseElementSchema.extend({
     type: z.literal('custom'),
     component: z.string(),
-    props: z.record(z.unknown()).optional(),
-  }),
+    props: z.record(z.string(), z.unknown()).optional(),
+  }).passthrough(),
 ]);
 
 // ============================================================
@@ -613,7 +614,7 @@ const AnimationDefaultsSchema = z.object({
 const TimelineDefinitionSchema = z.object({
   defaults: AnimationDefaultsSchema.optional(),
   sequences: z.array(SequenceDefinitionSchema),
-});
+}).passthrough();
 
 // ============================================================
 // STATE MACHINE SCHEMA
@@ -643,8 +644,8 @@ const InputDefinitionSchema = z.object({
 
 const StateMachineSchema = z.object({
   initial: z.string(),
-  states: z.record(StateDefinitionSchema),
-  inputs: z.record(InputDefinitionSchema).optional(),
+  states: z.record(z.string(), StateDefinitionSchema),
+  inputs: z.record(z.string(), InputDefinitionSchema).optional(),
 });
 
 // ============================================================
@@ -664,7 +665,7 @@ const PropertyBindingSchema = z.object({
 });
 
 const DataBindingSchema = z.object({
-  viewModel: z.record(ViewModelPropertySchema),
+  viewModel: z.record(z.string(), ViewModelPropertySchema),
   bindings: z.array(PropertyBindingSchema),
 });
 
@@ -722,14 +723,14 @@ export const KineticAnimationSchema = z.object({
   version: z.literal('1.0'),
   meta: AnimationMetaSchema.optional(),
   variables: z
-    .record(z.union([z.number(), z.string(), z.array(z.number())]))
+    .record(z.string(), z.union([z.number(), z.string(), z.array(z.number())]))
     .optional(),
   audio: AudioConfigSchema.optional(),
-  elements: z.record(ElementDefinitionSchema),
+  elements: z.record(z.string(), ElementDefinitionSchema),
   timeline: TimelineDefinitionSchema,
   stateMachine: StateMachineSchema.optional(),
   dataBinding: DataBindingSchema.optional(),
-});
+}).passthrough();
 
 // ============================================================
 // VALIDATION TYPES & FUNCTIONS

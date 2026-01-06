@@ -582,5 +582,3 @@ export function addSequence(
     },
   };
 }
-
-export { DSLParser };

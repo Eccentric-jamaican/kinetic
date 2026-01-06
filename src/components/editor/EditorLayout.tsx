@@ -8,33 +8,47 @@ import { useEditorStore } from '@/store';
 
 export function EditorLayout() {
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-zinc-100">
-      {/* Header */}
+    <div className="flex flex-col h-screen bg-black text-zinc-100 overflow-hidden">
       <Header />
 
-      {/* Main Content */}
-      <Group orientation="horizontal" className="flex-1 overflow-hidden">
-        {/* Left: Prompt/Chat Panel */}
-        <Panel defaultSize={28} minSize={20} maxSize={40}>
-          <div className="h-full w-full overflow-hidden">
+      <Group
+        id="kinetic-v4"
+        orientation="horizontal"
+        className="flex-1 w-full"
+      >
+        <Panel
+          defaultSize={25}
+          minSize={20}
+          collapsible={false}
+          className="relative"
+        >
+          <div className="h-full flex flex-col overflow-hidden border-r border-zinc-800">
             <PromptPanel />
           </div>
         </Panel>
 
-        <Separator className="w-2 bg-zinc-800 hover:bg-violet-600 transition-colors cursor-col-resize flex-shrink-0" />
+        <Separator className="w-1.5 bg-zinc-800 hover:bg-violet-600 transition-colors cursor-col-resize flex-shrink-0" />
 
-        {/* Center: Code Editor */}
-        <Panel defaultSize={36} minSize={25}>
-          <div className="h-full w-full overflow-hidden">
+        <Panel
+          defaultSize={40}
+          minSize={30}
+          collapsible={false}
+          className="relative"
+        >
+          <div className="h-full flex flex-col overflow-hidden border-r border-zinc-800">
             <CodeEditor />
           </div>
         </Panel>
 
-        <Separator className="w-2 bg-zinc-800 hover:bg-violet-600 transition-colors cursor-col-resize flex-shrink-0" />
+        <Separator className="w-1.5 bg-zinc-800 hover:bg-violet-600 transition-colors cursor-col-resize flex-shrink-0" />
 
-        {/* Right: Preview */}
-        <Panel defaultSize={36} minSize={25}>
-          <div className="h-full w-full overflow-hidden">
+        <Panel
+          defaultSize={35}
+          minSize={25}
+          collapsible={false}
+          className="relative"
+        >
+          <div className="h-full flex flex-col overflow-hidden">
             <PreviewPanel />
           </div>
         </Panel>
@@ -49,7 +63,6 @@ function Header() {
   return (
     <header className="h-14 border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
       <div className="flex items-center gap-4">
-        {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
             <svg
@@ -71,7 +84,6 @@ function Header() {
           </span>
         </div>
 
-        {/* Project Name */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-zinc-500">/</span>
           <span className="text-zinc-300">{projectName}</span>
@@ -82,6 +94,18 @@ function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            localStorage.removeItem('react-resizable-panels:kinetic-v4');
+            window.location.reload();
+          }}
+          className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors"
+          title="Reset Layout"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
         <button
           onClick={newProject}
           className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"

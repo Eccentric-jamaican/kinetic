@@ -3,7 +3,11 @@
  * Executes DSL animations using Framer Motion
  */
 
-import type { AnimationControls, TargetAndTransition, Transition } from 'framer-motion';
+import type { TargetAndTransition, Transition } from 'framer-motion';
+import { useAnimation } from 'framer-motion';
+
+// Get AnimationControls type from useAnimation return type
+type AnimationControls = ReturnType<typeof useAnimation>;
 import type {
   KineticAnimation,
   SequenceDefinition,
@@ -422,17 +426,13 @@ export class AnimationInterpreter {
    * Reset all elements to their initial state
    */
   async resetToInitial(): Promise<void> {
-    const promises: Promise<unknown>[] = [];
-
     for (const [elementId, element] of Object.entries(this.dsl.elements)) {
       const control = this.controls.get(elementId);
       if (control) {
         const initialState = convertStateToFramerMotion(element.initial);
-        promises.push(control.set(initialState));
+        control.set(initialState);
       }
     }
-
-    await Promise.all(promises);
   }
 
   /**

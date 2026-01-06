@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useEditorStore } from '@/store';
 import { compileToFramerMotion } from '@/compiler/framer';
+import { compileToCSS } from '@/compiler/css';
 
 export function CodeEditor() {
   const {
@@ -17,6 +18,7 @@ export function CodeEditor() {
   } = useEditorStore();
 
   const [compiledCode, setCompiledCode] = useState('');
+  const [cssCode, setCssCode] = useState('');
 
   // Compile when tab changes or DSL updates
   useEffect(() => {
@@ -26,6 +28,13 @@ export function CodeEditor() {
         setCompiledCode(result.code);
       } catch (e) {
         setCompiledCode(`// Compilation error: ${e instanceof Error ? e.message : 'Unknown'}`);
+      }
+    } else if (activeTab === 'css' && dsl) {
+      try {
+        const result = compileToCSS(dsl);
+        setCssCode(result.code);
+      } catch (e) {
+        setCssCode(`/* Compilation error: ${e instanceof Error ? e.message : 'Unknown'} */`);
       }
     }
   }, [activeTab, dsl]);
@@ -56,7 +65,7 @@ export function CodeEditor() {
       case 'framer':
         return compiledCode;
       case 'css':
-        return '/* CSS compiler coming soon */';
+        return cssCode;
       default:
         return dslJson;
     }
